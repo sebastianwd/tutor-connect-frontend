@@ -1,6 +1,8 @@
+import { truncate } from 'lodash'
 import { type NextPage } from 'next'
 import Head from 'next/head'
 import Link from 'next/link'
+import React from 'react'
 
 import { api } from '~/utils/api'
 
@@ -9,11 +11,12 @@ interface TutorCardProps {
   description?: string
   productImageUrl?: string
   price?: number
-  tutorId: string
+  tutorId: number
+  subject?: string
 }
 
 const TutorCard = (props: TutorCardProps) => {
-  const { name, description, productImageUrl, price, tutorId } = props
+  const { name, description, productImageUrl, price, tutorId, subject } = props
 
   return (
     <div className="mt-2 rounded bg-white shadow-lg shadow-gray-200 duration-300 hover:-translate-y-1 dark:bg-gray-800 dark:shadow-gray-900">
@@ -31,8 +34,11 @@ const TutorCard = (props: TutorCardProps) => {
               {name}
             </p>
             <small className="leading-5 text-gray-500 dark:text-gray-300">
-              {description}
+              {truncate(description, { length: 40 })}
             </small>
+            <p className="text-md mt-2 leading-relaxed text-gray-800 dark:text-gray-300">
+              {subject}
+            </p>
             <p className="text-right text-lg font-bold leading-relaxed text-gray-800 dark:text-gray-300">
               S/ {price}/h
             </p>
@@ -46,6 +52,17 @@ const TutorCard = (props: TutorCardProps) => {
 const Home: NextPage = () => {
   const { data: tutors } = api.tutor.tutors.useQuery()
 
+  const [filter, setFilter] = React.useState('')
+
+  // filter tutors by subject
+  const filteredTutors = React.useMemo(() => {
+    const filtered = tutors?.filter((tutor) =>
+      tutor.subjects.some((subject) => subject.toLowerCase().includes(filter))
+    )
+
+    return filtered
+  }, [tutors, filter])
+
   if (!tutors) return null
 
   return (
@@ -56,9 +73,59 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main className="flex min-h-screen flex-col items-center bg-gray-900">
+        <header>
+          <nav className="border-gray-200 bg-white px-4 py-2.5 dark:bg-gray-800 lg:px-6">
+            <div className="mx-auto flex max-w-screen-xl flex-col flex-wrap items-center justify-between">
+              <Link href="/" className="mb-3 flex items-center">
+                <span className="self-center whitespace-nowrap text-xl font-semibold dark:text-white">
+                  TutorConnect
+                </span>
+              </Link>
+              <div className="w-full items-center justify-between lg:order-1 lg:flex lg:w-auto">
+                <ul className="mt-4 flex flex-col font-medium lg:mt-0 lg:flex-row lg:space-x-8">
+                  <li>
+                    <Link
+                      href="/"
+                      className="lg:hover:text-primary-700 block border-b border-gray-100 py-2 pr-4 pl-3 text-white hover:bg-gray-50 dark:border-gray-700  dark:hover:bg-gray-700 dark:hover:text-white lg:border-0 lg:p-0 lg:hover:bg-transparent lg:dark:hover:bg-transparent lg:dark:hover:text-white"
+                    >
+                      Tutores
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/tutorias"
+                      className="lg:hover:text-primary-700 block border-b border-gray-100 py-2 pr-4 pl-3 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white lg:border-0 lg:p-0 lg:hover:bg-transparent lg:dark:hover:bg-transparent lg:dark:hover:text-white"
+                    >
+                      Mis Tutorías
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </nav>
+        </header>
         <section className="container mx-auto py-10 px-12">
+          <div className="mb-4 flex items-center justify-center">
+            <div className="w-1/2">
+              <label
+                htmlFor="filter"
+                className="mb-2 block text-center text-sm font-medium text-gray-900 dark:text-white"
+              >
+                Búsqueda
+              </label>
+              <input
+                type="text"
+                id="filter"
+                className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+                placeholder="Matemáticas, Física, etc."
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                required
+              />
+            </div>
+          </div>
           <div className="grid grid-flow-row gap-8 text-neutral-600 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {tutors.map((tutor) => (
+            {(filteredTutors || tutors).map((tutor) => (
               <TutorCard
                 tutorId={tutor.id}
                 key={tutor.id}
@@ -66,6 +133,7 @@ const Home: NextPage = () => {
                 description={tutor.description}
                 productImageUrl={tutor.productImageUrl}
                 price={tutor.pricePerHour}
+                subject={tutor.subjects.join(', ')}
               />
             ))}
           </div>

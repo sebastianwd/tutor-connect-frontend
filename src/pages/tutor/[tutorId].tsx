@@ -1,25 +1,85 @@
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
 import { useRouter } from 'next/router'
+import * as React from 'react'
 import { api } from '~/utils/api'
+import { capitalize, isNil } from 'lodash'
+import { formatDateToDay } from '~/utils/format-date-hours'
+import axios from 'axios'
 
 const TutorDetail = () => {
   const router = useRouter()
 
   const tutorId = router.query.tutorId as string
 
-  const { data: tutor } = api.tutor.tutorById.useQuery({ id: tutorId })
+  const [message, setMessage] = React.useState<string>('')
 
-  const { data: schedules } = api.tutor.schedulesByTutorId.useQuery({
-    id: tutorId,
-  })
+  const [messageList, setMessageList] = React.useState<string[]>([])
+
+  const { data: tutor } = api.tutor.tutorById.useQuery(
+    { id: tutorId },
+    { enabled: !isNil(tutorId) }
+  )
+
+  const [selectedSchedule, setSelectedSchedule] = React.useState<{
+    id: number
+  } | null>(null)
+
+  const { data: schedules } = api.tutor.schedulesByTutorId.useQuery(
+    {
+      id: Number(tutorId),
+    },
+    { enabled: !isNil(tutorId) }
+  )
+
+  const { mutateAsync: saveSchedule } = api.user.saveSchedule.useMutation()
+
+  const onSaveSchedule = async () => {
+    const schedule = schedules?.find((s) => s.id === selectedSchedule?.id)
+    if (schedule && tutor) {
+      try {
+        await saveSchedule({
+          id: schedule.id,
+          date: schedule.date,
+          tutorId: tutor.id,
+          userId: 1,
+          end: schedule.end,
+          start: schedule.start,
+        })
+        alert('Tutoría agendada')
+      } catch (error) {
+        console.log(error)
+      }
+    }
+  }
+
+  const onSendMessage = async () => {
+    await axios.post('http://localhost:5001/api/chat', message, {
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+    })
+
+    setMessage('')
+  }
+  React.useEffect(() => {
+    const source = new EventSource('http://localhost:5001/api/chat')
+    source.addEventListener('message', function (event: MessageEvent<string>) {
+      if (!messageList.includes(event.data)) {
+        setMessageList((prev) => [...prev, event.data])
+      }
+    })
+    return () => {
+      source.close()
+    }
+  }, [messageList])
 
   return (
     <main className="flex min-h-screen flex-col items-center bg-gray-900 py-6 text-gray-300">
-      <div className="my-auto flex min-w-[50%] flex-col gap-10 md:flex-row">
+      <div className="my-auto flex min-w-[50%] flex-col gap-10 md:w-[50%] md:flex-row">
         <div className="basis-1/2 overflow-hidden rounded-lg bg-gray-800 text-gray-300 shadow-lg ">
           <img
             className="h-56 w-full object-cover object-center"
-            src="https://images.unsplash.com/photo-1517841905240-472988babdf9?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80"
+            src={tutor?.productImageUrl}
             alt="avatar"
           />
 
@@ -28,7 +88,7 @@ const TutorDetail = () => {
               <img
                 className="h-24 w-24
                rounded-full object-cover object-center"
-                src="https://images.unsplash.com/photo-1517841905240-472988babdf9?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80"
+                src={tutor?.profileImageUrl}
                 alt="avatar"
               />
               <h1 className="text-2xl font-semibold">
@@ -51,11 +111,57 @@ const TutorDetail = () => {
               </svg>
               <h1 className="px-2 text-sm">{tutor?.email}</h1>
             </div>
+            <div className="mt-4 flex flex-col items-center">
+              <h6 className="mb-2">
+                {(schedules?.length || 0) > 0
+                  ? 'Horarios disponibles'
+                  : 'No hay horarios disponibles'}
+              </h6>
+              <ul className="rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                {schedules?.map((schedule) => {
+                  const isScheduleSelected =
+                    schedule?.id === selectedSchedule?.id
+
+                  return (
+                    <li
+                      className={`w-full cursor-pointer border-b border-gray-200 px-4 py-2 dark:border-gray-600 ${
+                        isScheduleSelected ? 'bg-blue-100 dark:bg-blue-800' : ''
+                      }`}
+                      key={schedule?.id}
+                      onClick={() => {
+                        if (isScheduleSelected) {
+                          setSelectedSchedule(null)
+                          return
+                        }
+
+                        setSelectedSchedule({ id: schedule.id })
+                      }}
+                    >
+                      {capitalize(formatDateToDay(new Date(schedule?.date)))}
+                      {', '}
+                      {schedule?.start} - {schedule?.end}
+                    </li>
+                  )
+                })}
+              </ul>
+              <div className="mt-2 flex w-full flex-col items-center space-y-3 p-4">
+                <button
+                  type="button"
+                  disabled={!selectedSchedule}
+                  className="mr-2 mb-2 w-fit rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-600
+                   dark:hover:bg-blue-700 dark:focus:ring-blue-800
+                  "
+                  onClick={() => void onSaveSchedule()}
+                >
+                  Programar tutoría
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="flex min-h-[50vh] flex-grow basis-1/2 flex-col overflow-hidden rounded-lg bg-gray-800 shadow-xl ">
+        <div className="flex max-h-[80vh] min-h-[50vh] flex-grow basis-1/2 flex-col overflow-hidden rounded-lg bg-gray-800 shadow-xl ">
           <div className="flex h-0 flex-grow flex-col overflow-auto p-4">
-            <div className="mt-2 flex w-full max-w-xs space-x-3">
+            {/*<div className="mt-2 flex w-full max-w-xs space-x-3">
               <div>
                 <div className="rounded-r-lg rounded-bl-lg bg-gray-600 p-3">
                   <p className="text-sm">
@@ -63,24 +169,39 @@ const TutorDetail = () => {
                   </p>
                 </div>
               </div>
-            </div>
-            <div className="mt-2 ml-auto flex w-full max-w-xs justify-end space-x-3">
-              <div>
-                <div className="rounded-l-lg rounded-br-lg bg-gray-900 p-3 text-white">
-                  <p className="text-sm">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
-                    do eiusmod.
-                  </p>
+              </div>*/}
+            {messageList?.map((message, index) => {
+              return (
+                <div
+                  className="mt-2 ml-auto flex w-full max-w-xs justify-end space-x-3"
+                  key={index}
+                >
+                  <div>
+                    <div className="rounded-l-lg rounded-br-lg bg-gray-900 p-3 text-white">
+                      <p className="text-sm">{message}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              )
+            })}
           </div>
-          <div className="bg-gray-300 p-4">
+          <div className="flex bg-gray-300 p-4">
             <input
               className="flex h-10 w-full items-center rounded px-3 text-sm"
               type="text"
               placeholder="Type your message…"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
             />
+            <button
+              type="button"
+              className="mr-2 mb-2 w-fit rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-600
+                   dark:hover:bg-blue-700 dark:focus:ring-blue-800
+                  "
+              onClick={() => void onSendMessage()}
+            >
+              Enviar
+            </button>
           </div>
         </div>
       </div>
