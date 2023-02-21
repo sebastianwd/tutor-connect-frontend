@@ -6,6 +6,8 @@ import { capitalize, isNil } from 'lodash'
 import { formatDateToDay } from '~/utils/format-date-hours'
 import axios from 'axios'
 
+const USER_ID = 1
+
 const TutorDetail = () => {
   const router = useRouter()
 
@@ -33,6 +35,8 @@ const TutorDetail = () => {
 
   const { mutateAsync: saveSchedule } = api.user.saveSchedule.useMutation()
 
+  const chatId = Number(`${tutorId}${USER_ID}`)
+
   const onSaveSchedule = async () => {
     const schedule = schedules?.find((s) => s.id === selectedSchedule?.id)
     if (schedule && tutor) {
@@ -57,12 +61,17 @@ const TutorDetail = () => {
       headers: {
         'Content-Type': 'text/plain',
       },
+      params: {
+        chatId,
+      },
     })
 
     setMessage('')
   }
   React.useEffect(() => {
-    const source = new EventSource('http://localhost:5001/api/chat')
+    const source = new EventSource(
+      `http://localhost:5001/api/chat?chatId=${chatId}`
+    )
     source.addEventListener('message', function (event: MessageEvent<string>) {
       if (!messageList.includes(event.data)) {
         setMessageList((prev) => [...prev, event.data])
@@ -71,7 +80,7 @@ const TutorDetail = () => {
     return () => {
       source.close()
     }
-  }, [messageList])
+  }, [messageList, chatId])
 
   return (
     <main className="flex min-h-screen flex-col items-center bg-gray-900 py-6 text-gray-300">
