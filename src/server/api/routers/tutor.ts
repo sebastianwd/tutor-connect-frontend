@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { z } from 'zod'
+import { env } from '~/env.mjs'
 
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
@@ -8,7 +9,7 @@ export const tutorRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       const tutor = await axios.get<TutorByIdResponse>(
-        `http://localhost:5001/api/v1/tutor/${input.id}`
+        `${env.API_URL}/api/v1/tutor/${input.id}`
       )
 
       return {
@@ -25,7 +26,7 @@ export const tutorRouter = createTRPCRouter({
     }),
   tutors: publicProcedure.query(async () => {
     const tutors = await axios.get<TutorsResponse>(
-      'http://localhost:5001/api/v1/tutor/'
+      `${env.API_URL}/api/v1/tutor/`
     )
 
     return tutors.data.result.map((tutor) => ({
@@ -44,7 +45,7 @@ export const tutorRouter = createTRPCRouter({
     .input(z.object({ id: z.number().int() }))
     .query(async ({ input }) => {
       const schedules = await axios.get<SchedulesByTutorIdResponse>(
-        `http://localhost:5001/api/v1/schedule/tutor/${input.id}/available/`
+        `${env.API_URL}/api/v1/schedule/tutor/${input.id}/available/`
       )
 
       return schedules.data.result.map((schedule) => ({

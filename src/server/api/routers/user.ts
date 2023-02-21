@@ -1,5 +1,6 @@
-import axios, { AxiosResponse } from 'axios'
+import axios from 'axios'
 import { z } from 'zod'
+import { env } from '~/env.mjs'
 
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
@@ -18,7 +19,7 @@ export const userRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       await axios
         .put<any, any, SaveSchedulePayload>(
-          `http://localhost:5001/api/v1/schedule/${input.id}`,
+          `${env.API_URL}/api/v1/schedule/${input.id}`,
           {
             date: input.date,
             startTime: input.start,
@@ -45,7 +46,7 @@ export const userRouter = createTRPCRouter({
     .input(z.object({ id: z.number().int() }))
     .query(async ({ input }) => {
       const schedules = await axios.get<SchedulesByUserId>(
-        `http://localhost:5001/api/v1/schedule/student/${input.id}`
+        `${env.API_URL}/api/v1/schedule/student/${input.id}`
       )
 
       return schedules.data.result.map((schedule) => ({

@@ -5,6 +5,7 @@ import { api } from '~/utils/api'
 import { capitalize, isNil } from 'lodash'
 import { formatDateToDay } from '~/utils/format-date-hours'
 import axios from 'axios'
+import { env } from '~/env.mjs'
 
 const USER_ID = 1
 
@@ -57,7 +58,7 @@ const TutorDetail = () => {
   }
 
   const onSendMessage = async () => {
-    await axios.post('http://localhost:5001/api/chat', message, {
+    await axios.post(`${env.NEXT_PUBLIC_API_URL}/api/chat`, message, {
       headers: {
         'Content-Type': 'text/plain',
       },
@@ -70,7 +71,7 @@ const TutorDetail = () => {
   }
   React.useEffect(() => {
     const source = new EventSource(
-      `http://localhost:5001/api/chat?chatId=${chatId}`
+      `${env.NEXT_PUBLIC_API_URL}/api/chat?chatId=${chatId}`
     )
     source.addEventListener('message', function (event: MessageEvent<string>) {
       if (!messageList.includes(event.data)) {
